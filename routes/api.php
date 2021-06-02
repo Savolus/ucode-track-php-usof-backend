@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/users', function (Request $request) {
-    return [];
-});
+// Auth routes
+Route::post('auth/register', 'App\Http\Controllers\AuthController@register');
+Route::post('auth/login', 'App\Http\Controllers\AuthController@login');
+Route::middleware('auth')->post('auth/logout', 'App\Http\Controllers\AuthController@logout');
