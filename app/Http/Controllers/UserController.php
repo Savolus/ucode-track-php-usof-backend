@@ -4,61 +4,97 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
-class UserController extends Controller
-{
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
+class UserController extends Controller {
+    public function index() {
+        return User::all();
     }
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'login' => 'required|unique:users,login|min:4|max:16',
+            'password' => 'required|confirmed|min:8|max:20',
+            'full_name' => 'required|min:3|max:32',
+            'email' => 'required|email|unique:users,email|max:255',
+            'role' => 'required|in:admin,user'
+        ]);
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
+        $validated['password'] = Hash::make($validated['password']);
+
+        User::create($validated);
+
+        return response([
+            'message' => 'Account created successfully'
+        ], 201);
     }
+    public function avatar(Request $request) {
+        $validated = $request->validate([
+            'profile_picture' => 'required|image|mimes:png|max:4096'
+        ]);
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Http\Response
-     */
-    public function show(User $user)
-    {
-        //
+        $user = Auth::user();
+
+        $file = file_get_contents($validated['profile_picture']);
+        $path = '/images/' . $user['login'] . '.png';
+        file_put_contents(public_path() . $path, $file);
+
+        $user = User::find($user['id']);
+        $user->update([
+            'profile_picture' => ".$path"
+        ]);
+
+        return response([
+            'message' => 'Account updated successfully'
+        ], 201);
     }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, User $user)
-    {
-        //
+    public function show(int $id) {
+        return User::find($id);
     }
+    public function update(Request $request) {
+        $validated = $request->validate([
+            'login' => 'unique:users,login|min:4|max:16',
+            'password' => 'string|confirmed|min:8|max:20',
+            'full_name' => 'string|min:3|max:32',
+            'email' => 'email|unique:users,email|max:255'
+        ]);
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(User $user)
-    {
-        //
+        $user = Auth::user();
+        $user = User::find($user['id']);
+
+        if (isset($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        }
+        if (isset($validated['login']) && isset($user['profile_picture'])) {
+            $path = './images/' . $validated['login'] . '.png';
+            $oldPath = public_path() . strstr($user['profile_picture'], '/');
+            $newPath = public_path() . strstr($path, '/');
+
+            $validated['profile_picture'] = $path;
+
+            $file = file_get_contents($oldPath);
+
+            unlink($oldPath);
+
+            file_put_contents($newPath, $file);
+        }
+
+        $user->update($validated);
+
+        return response([
+            'message' => 'Account updated successfully'
+        ], 201);
+    }
+    public function destroy(int $id) {
+        $user = User::find($id);
+        $path = public_path() . strstr($user['profile_picture'], '/');
+
+        unlink($path);
+
+        User::destroy($id);
+
+        return response([
+            'message' => 'Account deleted successfully'
+        ], 201);
     }
 }

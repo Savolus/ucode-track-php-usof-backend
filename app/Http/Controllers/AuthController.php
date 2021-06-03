@@ -31,6 +31,13 @@ class AuthController extends Controller {
         ]);
 
         $user = User::where('login', $validated['login'])->first();
+
+        if (empty($user) || !Hash::check($validated['password'], $user['password'])) {
+            return response([
+                'message' => 'Not authorithed'
+            ], 401);
+        }
+
         $token = Auth::attempt([
             'id' => $user['id'],
             'password' => $validated['password']
