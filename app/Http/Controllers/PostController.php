@@ -2,30 +2,47 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
-class PostController extends Controller
-{
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
+class PostController extends Controller {
+    public function index() {
+        return Post::all();
     }
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string|max:4095',
+            'categories' => 'required|array'
+        ]);
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
+        $user = Auth::user();
+        $user = User::find($user['id']);
+
+        $categories = [];
+
+        foreach ($validated['categories'] as $category_id) {
+            array_push($categories, Category::find($category_id));
+        }
+
+        $post = new Post();
+
+        $post->title = $validated['title'];
+        $post->content = $validated['content'];
+
+        $post->user()->associate($user);
+
+        $post->save();
+
+        $post->categories()->saveMany($categories);
+        $user->posts()->save($post);
+
+        return response([
+            'message' => 'Post created successfully'
+        ], 201);
     }
 
     /**
