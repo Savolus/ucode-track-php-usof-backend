@@ -17,7 +17,7 @@ class UserController extends Controller {
             'password' => 'required|confirmed|min:8|max:20',
             'full_name' => 'required|min:3|max:32',
             'email' => 'required|email|unique:users,email|max:255',
-            'role' => 'required|in:admin,user'
+            'role' => 'in:admin,user'
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -28,7 +28,20 @@ class UserController extends Controller {
             'message' => 'Account created successfully'
         ], 201);
     }
-    public function avatar(Request $request) {
+    public function avatar_get(int $id) {
+        $user = User::find($id);
+
+        $path = public_path();
+
+        if (empty($user['profile_picture'])) {
+            $path .= '/images/fovkegtBuLYCko4hwCwosUMjJqi.png';
+        } else {
+            $path .= strstr($user['profile_picture'], '/');
+        }
+
+        return response()->download($path);
+    }
+    public function avatar_create(Request $request) {
         $validated = $request->validate([
             'profile_picture' => 'required|image|mimes:png|max:4096'
         ]);
@@ -99,6 +112,7 @@ class UserController extends Controller {
 
         unlink($path);
 
+        // DO NOT DELETE
         User::destroy($id);
 
         return response([
