@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
+use App\Models\Comment;
+use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -41,26 +42,71 @@ class PostController extends Controller {
         $user = Auth::user();
         $user = User::find($user['id']);
 
-        $categories = [];
-
-        foreach ($validated['categories'] as $category_id) {
-            array_push($categories, Category::find($category_id));
-        }
-
         $post = new Post();
 
         $post->title = $validated['title'];
         $post->content = $validated['content'];
 
         $post->user()->associate($user);
-
         $post->save();
-
-        $post->categories()->saveMany($categories);
-        // $user->posts()->save($post);
+        $post->categories()->attach($validated['categories']);
 
         return response([
             'message' => 'Post created successfully'
+        ], 201);
+    }
+    public function store_comments(Request $request, int $id) {
+        $validated = $request->validate([
+            'content' => 'required|string|max:2047'
+        ]);
+
+        $user = Auth::user();
+        $user = User::find($user['id']);
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        $comment = new Comment();
+
+        $comment->content = $validated['content'];
+
+        $comment->user()->associate($user);
+        $comment->post()->associate($post);
+        $comment->save();
+
+        return response([
+            'message' => 'Comment created successfully'
+        ], 201);
+    }
+    public function store_likes(Request $request, int $id) {
+        $validated = $request->validate([
+            'type' => 'required|in:like,dislike'
+        ]);
+
+        $user = Auth::user();
+        $user = User::find($user['id']);
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        $like = new Like();
+
+        $like->type = $validated['type'];
+
+        $like->user()->associate($user);
+        $like->post()->associate($post);
+        $like->save();
+
+        return response([
+            'message' => 'Like created successfully'
         ], 201);
     }
     public function show($id) {
@@ -86,6 +132,39 @@ class PostController extends Controller {
 
         return $posts_with_categories;
     }
+    public function show_comments($id){
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        return $post->comments()->get();
+    }
+    public function show_categories($id){
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        return $post->categories()->get();
+    }
+    public function show_likes($id){
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        return $post->likes()->get();
+    }
     public function update(Request $request, int $id) {
         $validated = $request->validate([
             'title' => 'string|max:255',
@@ -98,15 +177,7 @@ class PostController extends Controller {
         $post = Post::find($id);
 
         if (isset($validated['categories'])) {
-            $categories = [];
-
-            foreach ($validated['categories'] as $category_id) {
-                array_push($categories, Category::find($category_id));
-            }
-
-            $categories = $post->categories()->get();
-
-            $post->categories()->saveMany($categories);
+            $post->categories()->sync($validated['categories']);
 
             unset($validated['categories']);
         }
@@ -117,15 +188,38 @@ class PostController extends Controller {
             'message' => 'Post updated successfully'
         ], 201);
     }
+    public function destroy(int $id) {
+        $post = Post::find($id);
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Post  $post
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Post $post)
-    {
-        //
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        Post::destroy($id);
+
+        return response([
+            'message' => 'Post deleted successfully'
+        ], 201);
+    }
+    public function destroy_likes(int $id) {
+        $user = Auth::user();
+        $user = User::find($user['id']);
+        $post = Post::find($id);
+
+        if (!isset($post)) {
+            return response([
+                'message' => 'Post not found'
+            ], 404);
+        }
+
+        $like = Like::where('user_id', $user['id'])->where('post_id', $id);
+
+        Like::destroy($like['id']);
+
+        return response([
+            'message' => 'Post deleted successfully'
+        ], 201);
     }
 }

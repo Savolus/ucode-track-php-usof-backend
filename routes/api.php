@@ -19,9 +19,15 @@ Route::middleware('admin')->delete('users/{id}', 'App\Http\Controllers\UserContr
 // Posts routes
 Route::get('posts', 'App\Http\Controllers\PostController@index');
 Route::get('posts/{id}', 'App\Http\Controllers\PostController@show');
+Route::get('posts/{id}/comments', 'App\Http\Controllers\PostController@show_comments');
+Route::get('posts/{id}/categories', 'App\Http\Controllers\PostController@show_categories');
+Route::get('posts/{id}/likes', 'App\Http\Controllers\PostController@show_likes');
 Route::middleware('auth')->post('posts', 'App\Http\Controllers\PostController@store');
+Route::middleware('auth')->post('posts/{id}/comments', 'App\Http\Controllers\PostController@store_comments');
+Route::middleware('auth')->post('posts/{id}/likes', 'App\Http\Controllers\PostController@store_likes');
 Route::middleware('auth')->patch('posts/{id}', 'App\Http\Controllers\PostController@update');
 Route::middleware('auth')->delete('posts/{id}', 'App\Http\Controllers\PostController@destroy');
+Route::middleware('auth')->delete('posts/{id}/likes', 'App\Http\Controllers\PostController@destroy_likes');
 
 // Categories routes
 Route::get('categories', 'App\Http\Controllers\CategoryController@index');

@@ -108,6 +108,13 @@ class UserController extends Controller {
     }
     public function destroy(int $id) {
         $user = User::find($id);
+
+        if (!isset($user)) {
+            return response([
+                'message' => 'User not found'
+            ], 404);
+        }
+
         $path = public_path() . strstr($user['profile_picture'], '/');
 
         unlink($path);

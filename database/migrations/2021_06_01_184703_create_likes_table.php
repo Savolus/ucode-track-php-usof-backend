@@ -10,8 +10,8 @@ class CreateLikesTable extends Migration {
             $table->id();
             $table->enum('type', [ 'like', 'dislike' ])->default('like');
             $table->foreignId('user_id')->constrained('users');
-            $table->foreignId('post_id')->constrained('posts');
-            $table->foreignId('comment_id')->constrained('comments');
+            $table->foreignId('post_id')->nullable()->constrained('posts');
+            $table->foreignId('comment_id')->nullable()->constrained('comments');
             $table->timestamps();
         });
     }
