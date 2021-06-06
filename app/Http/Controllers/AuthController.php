@@ -77,6 +77,8 @@ class AuthController extends Controller {
         $user = User::where('email', $email)->first();
         $status = Password::tokenExists($user, $token);
 
+        Password::deleteToken($user);
+
         return response([
             'can_reset' => $status
         ]);
