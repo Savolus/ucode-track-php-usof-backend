@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller {
     public function register(Request $request) {
@@ -54,10 +56,29 @@ class AuthController extends Controller {
             'message' => 'Successfully logout'
         ], 201);
     }
-    public function passwordReset(Request $request) {
-        # code...
+    public function password_reset(Request $request) {
+        $validated = $request->validate([
+            'email' => 'required|email|exists:users,email'
+        ]);
+
+        $status = Password::sendResetLink($validated);
+
+        $message = [
+            'message' => $status === Password::RESET_LINK_SENT
+            ? 'Emial with password reset is sent'
+            : 'Emial with password reset isn\'t sent'
+        ];
+
+        return response($message, 201);
     }
-    public function passwordResetConfirm(Request $request) {
-        # code...
+    public function password_reset_confirm(Request $request, string $token) {
+        $email = $request->query('email');
+
+        $user = User::where('email', $email)->first();
+        $status = Password::tokenExists($user, $token);
+
+        return response([
+            'can_reset' => $status
+        ]);
     }
 }

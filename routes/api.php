@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('auth/register', 'App\Http\Controllers\AuthController@register');
 Route::post('auth/login', 'App\Http\Controllers\AuthController@login');
 Route::middleware('auth')->post('auth/logout', 'App\Http\Controllers\AuthController@logout');
+Route::post('auth/password-reset', 'App\Http\Controllers\AuthController@password_reset')->name('password.email');
+Route::get('auth/password-reset/{token}', 'App\Http\Controllers\AuthController@password_reset_confirm')->name('password.reset');
 
 // Users routes
 Route::get('users', 'App\Http\Controllers\UserController@index');
