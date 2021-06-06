@@ -29,6 +29,14 @@ Route::middleware('auth')->patch('posts/{id}', 'App\Http\Controllers\PostControl
 Route::middleware('auth')->delete('posts/{id}', 'App\Http\Controllers\PostController@destroy');
 Route::middleware('auth')->delete('posts/{id}/likes', 'App\Http\Controllers\PostController@destroy_likes');
 
+// Comments routes
+Route::get('comments/{id}', 'App\Http\Controllers\CommentController@show');
+Route::get('comments/{id}/likes', 'App\Http\Controllers\CommentController@show_likes');
+Route::middleware('auth')->post('comments/{id}/likes', 'App\Http\Controllers\CommentController@store_likes');
+Route::middleware('auth')->patch('comments/{id}', 'App\Http\Controllers\CommentController@update');
+Route::middleware('auth')->delete('comments/{id}', 'App\Http\Controllers\CommentController@destroy');
+Route::middleware('auth')->delete('comments/{id}/likes', 'App\Http\Controllers\CommentController@destroy_likes');
+
 // Categories routes
 Route::get('categories', 'App\Http\Controllers\CategoryController@index');
 Route::get('categories/{id}', 'App\Http\Controllers\CategoryController@show');

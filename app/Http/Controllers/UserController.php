@@ -8,8 +8,58 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller {
+    public function get_user_rating($user) {
+        $rating = 0;
+
+        $posts = $user->posts()->get();
+        $comments = $user->comments()->get();
+
+        foreach ($posts as $post) {
+            $post_likes_dislikes = $post->likes()->get();
+            $post_rating = 0;
+
+            foreach ($post_likes_dislikes as $like_dislike) {
+                $post_rating += $like_dislike['type'] === 'like' ? 1 : -1;
+            }
+
+            $rating += $post_rating;
+        }
+
+        foreach ($comments as $comment) {
+            $comment_likes_dislikes = $comment->likes()->get();
+            $comment_rating = 0;
+
+            foreach ($comment_likes_dislikes as $like_dislike) {
+                $comment_rating += $like_dislike['type'] === 'like' ? 1 : -1;
+            }
+
+            $rating += $comment_rating;
+        }
+
+        return $rating;
+    }
+
     public function index() {
-        return User::all();
+        $users = User::all();
+        $users_response = [];
+
+        foreach ($users as $user) {
+            $user_destructered = json_decode(json_encode($user), true);
+            $user_keys = array_keys($user_destructered);
+            $user_values = array_values($user_destructered);
+
+            $joined_user = [];
+
+            for ($i = 0; $i < count($user_keys); $i++) {
+                $joined_user[$user_keys[$i]] = $user_values[$i];
+            }
+
+            $joined_user['rating'] = $this->get_user_rating($user);
+
+            array_push($users_response, $joined_user);
+        }
+
+        return $users_response;
     }
     public function store(Request $request) {
         $validated = $request->validate([
@@ -63,6 +113,7 @@ class UserController extends Controller {
     }
     public function show(int $id) {
         $user = User::find($id);
+        $user_response = [];
 
         if (!isset($user)) {
             return response([
@@ -70,7 +121,17 @@ class UserController extends Controller {
             ], 404);
         }
 
-        return $user;
+        $user_destructered = json_decode(json_encode($user), true);
+        $user_keys = array_keys($user_destructered);
+        $user_values = array_values($user_destructered);
+
+        for ($i = 0; $i < count($user_keys); $i++) {
+            $user_response[$user_keys[$i]] = $user_values[$i];
+        }
+
+        $user_response['rating'] = $this->get_user_rating($user);
+
+        return $user_response;
     }
     public function update(Request $request) {
         $validated = $request->validate([

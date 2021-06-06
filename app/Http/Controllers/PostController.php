@@ -10,27 +10,79 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller {
-    public function index() {
-        $posts = Post::all();
-        $posts_with_categories = [];
+    public function get_user_post_like($post, $user) {
+        $like = Like::where('user_id', $user['id'])->where('post_id', $post['id'])->first();
 
-        foreach ($posts as $post) {
-            $arr = json_decode(json_encode($post), true);
-            $keys = array_keys($arr);
-            $values = array_values($arr);
-
-            $arr_to_push = [];
-
-            for ($i = 0; $i < count($keys); $i++) {
-                $arr_to_push[$keys[$i]] = $values[$i];
-            }
-
-            $arr_to_push['categories'] = $post->categories()->allRelatedIds();
-
-            array_push($posts_with_categories, $arr_to_push);
+        if (empty($like)) {
+            return null;
         }
 
-        return $posts_with_categories;
+        return [
+            'type' => $like['type']
+        ];
+    }
+    public function get_user_comment_like($comment, $user) {
+        $like = Like::where('user_id', $user['id'])->where('comment_id', $comment['id'])->first();
+
+        if (empty($like)) {
+            return null;
+        }
+
+        return [
+            'type' => $like['type']
+        ];
+    }
+    public function get_post_rating($post) {
+        $rating = 0;
+
+        $post_likes_dislikes = $post->likes()->get();
+
+        foreach ($post_likes_dislikes as $like_dislike) {
+            $rating += $like_dislike['type'] === 'like' ? 1 : -1;
+        }
+
+        return $rating;
+    }
+    public function get_comment_rating($comment) {
+        $rating = 0;
+
+        $comment_likes_dislikes = $comment->likes()->get();
+
+        foreach ($comment_likes_dislikes as $like_dislike) {
+            $rating += $like_dislike['type'] === 'like' ? 1 : -1;
+        }
+
+        return $rating;
+    }
+    public function index() {
+        $user = Auth::user();
+        $posts = Post::all();
+        $posts_response = [];
+
+        foreach ($posts as $post) {
+            $post_destructered = json_decode(json_encode($post), true);
+            $post_keys = array_keys($post_destructered);
+            $post_values = array_values($post_destructered);
+
+            $joined_post = [];
+
+            for ($i = 0; $i < count($post_keys); $i++) {
+                $joined_post[$post_keys[$i]] = $post_values[$i];
+            }
+
+            $joined_post['categories'] = $post->categories()->allRelatedIds();
+            $joined_post['rating'] = $this->get_post_rating($post);
+
+            if (!empty($user)) {
+                $user = User::find($user['id']);
+
+                $joined_post['self'] = $this->get_user_post_like($post, $user);
+            }
+
+            array_push($posts_response, $joined_post);
+        }
+
+        return $posts_response;
     }
     public function store(Request $request) {
         $validated = $request->validate([
@@ -97,20 +149,59 @@ class PostController extends Controller {
             ], 404);
         }
 
-        $like = new Like();
+        $is_like_exists = Like::where('user_id', $user['id'])->where('post_id', $post['id'])->first();
 
-        $like->type = $validated['type'];
+        if (empty($is_like_exists)) {
+            $like = new Like();
 
-        $like->user()->associate($user);
-        $like->post()->associate($post);
-        $like->save();
+            $like->type = $validated['type'];
 
-        return response([
-            'message' => 'Like created successfully'
-        ], 201);
+            $like->user()->associate($user);
+            $like->post()->associate($post);
+            $like->save();
+
+            if ($validated['type'] === 'like') {
+                return response([
+                    'message' => 'Post liked successfully'
+                ], 201);
+            } else {
+                return response([
+                    'message' => 'Post disliked successfully'
+                ], 201);
+            }
+        }
+
+        if ($is_like_exists->type === $validated['type']) {
+            Like::destroy($is_like_exists->id);
+
+            if ($validated['type'] === 'like') {
+                return response([
+                    'message' => 'Post unliked successfully'
+                ], 201);
+            } else {
+                return response([
+                    'message' => 'Post undisliked successfully'
+                ], 201);
+            }
+        }
+
+        $is_like_exists->type = $validated['type'];
+        $is_like_exists->save();
+
+        if ($validated['type'] === 'like') {
+            return response([
+                'message' => 'Post liked successfully'
+            ], 201);
+        } else {
+            return response([
+                'message' => 'Post disliked successfully'
+            ], 201);
+        }
     }
     public function show($id) {
+        $user = Auth::user();
         $post = Post::find($id);
+        $post_response = [];
 
         if (!isset($post)) {
             return response([
@@ -118,21 +209,27 @@ class PostController extends Controller {
             ], 404);
         }
 
-        $posts_with_categories = [];
+        $post_destructered = json_decode(json_encode($post), true);
+        $post_keys = array_keys($post_destructered);
+        $post_values = array_values($post_destructered);
 
-        $arr = json_decode(json_encode($post), true);
-        $keys = array_keys($arr);
-        $values = array_values($arr);
-
-        for ($i = 0; $i < count($keys); $i++) {
-            $posts_with_categories[$keys[$i]] = $values[$i];
+        for ($i = 0; $i < count($post_keys); $i++) {
+            $post_response[$post_keys[$i]] = $post_values[$i];
         }
 
-        $posts_with_categories['categories'] = $post->categories()->allRelatedIds();
+        $post_response['categories'] = $post->categories()->allRelatedIds();
+        $post_response['rating'] = $this->get_post_rating($post);
 
-        return $posts_with_categories;
+        if (!empty($user)) {
+            $user = User::find($user['id']);
+
+            $post_response['self'] = $this->get_user_post_like($post, $user);
+        }
+
+        return $post_response;
     }
     public function show_comments($id){
+        $user = Auth::user();
         $post = Post::find($id);
 
         if (!isset($post)) {
@@ -141,7 +238,32 @@ class PostController extends Controller {
             ], 404);
         }
 
-        return $post->comments()->get();
+        $comments = $post->comments()->get();
+        $comments_response = [];
+
+        foreach ($comments as $comment) {
+            $comment_destructered = json_decode(json_encode($comment), true);
+            $comment_keys = array_keys($comment_destructered);
+            $comment_values = array_values($comment_destructered);
+
+            $joined_comment = [];
+
+            for ($i = 0; $i < count($comment_keys); $i++) {
+                $joined_comment[$comment_keys[$i]] = $comment_values[$i];
+            }
+
+            $joined_comment['rating'] = $this->get_comment_rating($post);
+
+            if (!empty($user)) {
+                $user = User::find($user['id']);
+
+                $joined_comment['self'] = $this->get_user_comment_like($post, $user);
+            }
+
+            array_push($comments_response, $joined_comment);
+        }
+
+        return $comments_response;
     }
     public function show_categories($id){
         $post = Post::find($id);
@@ -172,8 +294,6 @@ class PostController extends Controller {
             'categories' => 'array'
         ]);
 
-        $user = Auth::user();
-        $user = User::find($user['id']);
         $post = Post::find($id);
 
         if (isset($validated['categories'])) {
@@ -219,7 +339,7 @@ class PostController extends Controller {
         Like::destroy($like['id']);
 
         return response([
-            'message' => 'Post deleted successfully'
+            'message' => 'Post like deleted successfully'
         ], 201);
     }
 }
